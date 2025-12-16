@@ -1,0 +1,8 @@
+{
+  "name": "koinonia-signaling",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "y-webrtc": "^10.3.0"
+  }
+}
