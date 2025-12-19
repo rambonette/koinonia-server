@@ -9,32 +9,45 @@ WebSocket Secure signaling server for Koinonia P2P grocery list app.
 3. Get initial certificates (see below)
 4. Start the server
 
-## Initial Certificate Setup
+## Initial Certificate Setup (First-time Bootstrap)
 
-Before starting with SSL, get your first certificate.
+Before starting with SSL, you need to obtain your first certificate. This is a one-time process.
 
 **Important:** Make sure you've set `DOMAIN` and `EMAIL` in your `.env` file first!
+
+The main nginx config requires SSL certificates to start, but we need nginx running to complete the ACME challenge. This bootstrap process uses a temporary HTTP-only config:
 
 ```bash
 # Load environment variables
 source .env
 
-# Start nginx temporarily for HTTP challenge
-docker compose up -d nginx
+# Start temporary HTTP-only nginx for ACME challenge
+docker run --rm -d \
+  --name nginx-bootstrap \
+  -p 80:80 \
+  -v $(pwd)/nginx/nginx.bootstrap.conf:/etc/nginx/nginx.conf:ro \
+  -v koinonia-server_certbot-webroot:/var/www/certbot \
+  nginx:alpine
 
-# Get certificate (uses DOMAIN and EMAIL from .env)
-docker compose run --rm certbot certonly \
-  --webroot \
-  --webroot-path=/var/www/certbot \
-  -d ${DOMAIN} \
-  --email ${EMAIL} \
-  --agree-tos \
-  --no-eff-email
+# Get certificate
+docker run --rm \
+  -v koinonia-server_certbot-etc:/etc/letsencrypt \
+  -v koinonia-server_certbot-var:/var/lib/letsencrypt \
+  -v koinonia-server_certbot-webroot:/var/www/certbot \
+  certbot/certbot certonly \
+    --webroot \
+    --webroot-path=/var/www/certbot \
+    -d ${DOMAIN} \
+    --email ${EMAIL} \
+    --agree-tos \
+    --no-eff-email
 
-# Restart with full config
-docker compose down
+# Stop bootstrap nginx and start full stack
+docker stop nginx-bootstrap
 docker compose up -d
 ```
+
+**Note:** If you hit Let's Encrypt rate limits (common with free dynamic DNS domains), add `--staging` to the certbot command to test. Remove it once rate limits reset.
 
 ## Running
 
